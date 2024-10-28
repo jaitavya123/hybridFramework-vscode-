@@ -22,6 +22,7 @@ class Home1_(Parent_class):                     #inheriting parent_class in home
  checkout_ln_xpath="//input[@id='last-name']"
  checkout_postal_xpath="//input[@id='postal-code']"
  checkout_continue_xpath="//input[@type='submit']"
+ subtotal_class_name="summary_subtotal_label"
  finish_xpath="//a[@href='./checkout-complete.html']"
 
  def select_prodt(self):
@@ -37,5 +38,13 @@ class Home1_(Parent_class):                     #inheriting parent_class in home
   self.send_value_element("checkout_ln_xpath",self.checkout_ln_xpath,"test last name")
   self.send_value_element("checkout_postal_xpath",self.checkout_postal_xpath,"6576576")
   self.click_element("checkout_continue_xpath",self.checkout_continue_xpath)
+  self.check_TotalPrice()
   self.click_element("finish_xpath",self.finish_xpath)
   
+ def check_TotalPrice(self):
+  time.sleep(5)
+  price_text=WebDriverWait(self.auto_obj, 10, poll_frequency=1).until(EC.element_to_be_clickable(
+   (By.CLASS_NAME,self.subtotal_class_name))).text.split("$")[-1] 
+#this code trace only digits values from web element
+  price = float(price_text)
+  assert price>2,f"subtotal= {price} is less than $2"
