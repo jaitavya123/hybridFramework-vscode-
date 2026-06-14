@@ -1,0 +1,89 @@
+//THIS FILE NOT PART OF CODE STRUCTURE
+
+
+pipeline: pipeline {
+
+    agent any
+    // Add this tools block so Jenkins initializes the Allure path wrapper
+    tools { allure 'allure' }
+    environment {
+        VENV = ".venv" }
+
+    stages {
+        stage("Private Repo") {
+            steps {
+                git credentialsId: 'git_token',
+                    url: 'https://github.com/jaitavya-DC/Event_webApp.git',
+                    branch: 'master'
+            }
+        }
+        stage("Setup") {
+          // This blocks Jenkins from passing down the corrupt global variables to this stage
+          steps {
+            bat '''
+            @echo off
+            :: Explicitly force Python to look at its actual installation directory
+            set PYTHONHOME=C:\\Python314
+            set PYTHONPATH=C:\\Python314\\Lib
+            "C:\\Python314\\python.exe" -m venv %VENV%
+
+            "%VENV%\\Scripts\\python.exe" -m pip install --upgrade pip
+            //path of requirment file
+
+            "%VENV%\\Scripts\\pip.exe" install -r "C:\\Users\\Administrator\\Pycham_workspace\\Event_webApp\\requirements.txt"
+
+            "%VENV%\\Scripts\\pip.exe" install pytest
+
+        '''
+            }
+         }
+        stage("Run Test") {
+            // Ensure the test run context is also protected from the broken paths
+            environment {
+                PYTHONHOME = ""
+                PYTHONPATH = ""
+            }
+            steps {
+                bat '''
+                    @echo off
+                    :: Run pytest natively through the virtual environment's clean isolation layer
+                    "%VENV%\\Scripts\\python.exe" -m pytest pytest_folder/ -vs -m "user1" --alluredir=allure-results
+                '''
+            }
+        }
+    }
+
+    post {
+
+        always {
+
+            // 1. Generate the Allure Report from the results folder
+            allure includeProperties: false,
+                   jdk: '',
+                   results: [[path: 'allure-results']]
+
+            // 2. Send the Email Notification with the build status and link to the report
+
+            emailext (
+
+                subject: "Jenkins Build #${BUILD_NUMBER} - ${currentBuild.currentResult}: Event_webApp",
+
+                body: """
+
+                    <p>The build for <b>Event_webApp</b> completed with status: <b>${currentBuild.currentResult}</b>.</p>
+
+                    <p>Check the console output here: <a href="${BUILD_URL}">${BUILD_URL}</a></p>
+
+                    <p>View the Allure Report here: <a href="${BUILD_URL}allure/">${BUILD_URL}allure/</a></p>
+
+                """,
+
+                from:'jaitavya123@gmail.com', // sender of email
+
+                replyTo:'jaitavya123@gmail.com',//reply to thisemial
+
+                to: 'jaitavya@dreamcast.co', // Change to your recipient email
+
+                mimeType: 'text/html'
+
+            ) }    }}
